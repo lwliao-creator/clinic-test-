@@ -668,7 +668,7 @@ const ReminderPreference = {
 
 /** AppointmentsSlot：日期、時段、已預約人數、狀態
  *  以今天起 7 天動態產生示意資料（固定種子，重新整理結果一致） */
-const AppointmentsSlots = buildSlots(7);
+let AppointmentsSlots = [];   // 於下方工具函式宣告後再產生（見「初始化」）
 
 /** PatientRequest：表單送出時組成（name / phone / symptomNote / isChronicPrescription） */
 let PatientRequest = null;
@@ -690,12 +690,14 @@ function slotStatus(booked, capacity) {
 function buildSlots(days) {
   const out = [];
   const today = new Date();
+  // 預約比例輪替表：確保「可預約／接近額滿／額滿」三種狀態都會出現
+  const ratios = [0.45, 0.85, 1, 0.3, 0.9, 0.6, 1, 0.5, 0.8, 0.35];
+  let k = (today.getDate() % 3);
   for (let i = 0; i < days; i++) {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
     const wd = d.getDay();
-    SessionTypes.filter(s => s.weekdays.includes(wd)).forEach((s, idx) => {
-      const seed = (d.getDate() * 37 + idx * 53 + wd * 11) % 100;  // 0~99
-      let ratio = seed < 25 ? 1 : seed < 50 ? 0.75 + (seed % 20) / 100 : 0.2 + (seed % 45) / 100;
+    SessionTypes.filter(s => s.weekdays.includes(wd)).forEach(s => {
+      let ratio = ratios[k++ % ratios.length];
       if (i === 0) ratio = Math.max(ratio, 0.8);                   // 當天名額通常較少
       const booked = Math.min(s.capacity, Math.round(s.capacity * ratio));
       out.push({ date: isoDate(d), sessionId: s.id, period: s.name, start: s.start, end: s.end,
@@ -917,6 +919,7 @@ function initQueue() {
 }
 
 /* ========== 初始化 ========== */
+AppointmentsSlots = buildSlots(7);
 renderProfile();
 renderSchedule();
 renderDateTabs();
